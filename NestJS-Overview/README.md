@@ -35,6 +35,8 @@ export class AppController {}
 @nestjs/common에서 제공하는 @Req, @Body, @Param의 데코레이터를 활용해서 원하는 값들은 인자로 받을 수 있다.
 
 ```javascript
+app.controller.ts
+
 import { Body, Controller, Get, Param, Req } from '@nestjs/common';
 import { Request } from 'express';
 import { AppService } from './app.service';
@@ -56,11 +58,13 @@ export class AppController {
 ![image](https://user-images.githubusercontent.com/61923768/150675051-742ee7a6-e498-4d96-a996-bafc171fece6.png)
 위에 보는 것과 같이 Request 객체 속의 Body data와 Parameter를 데코레이터를 활용해서 손쉽게 얻을 수도 있으며 Request 객체를 바로 받을 수도 있다. 뿐만 아니라 query나 header 등도 가져올 수 있으며 인자를 넣어 특정값만을 가져올 수도 있다.
 
-### Dependency injection(의존성 주입)
+### Dependency Injection(의존성 주입)
 
 #### Provider(공급자)
 
 ```javascript
+app.module.ts;
+
 import { Module } from "@nestjs/common";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
@@ -72,3 +76,35 @@ import { AppService } from "./app.service";
 })
 export class AppModule {}
 ```
+
+위 코드은 NestJS의 기본 데코레이터인 Module이다. 모듈 데코레이터의 인자 중 providers는 Injectable한 클래스를 공급자로 설정하여 Dependency를 주입하는 역할을 한다.
+
+이렇게 공급자로 설정된 클래스들은 controllers에 정의된 소비자가 사용할 수 있다.
+
+```javascript
+app.service.ts;
+
+import { Injectable } from '@nestjs/common';
+
+@Injectable()
+export class AppService {
+  getHello(): string {...}
+}
+```
+
+app.module.ts에서 공급자로 설정된 app.service.ts는 위에서 볼 수 있는 것처럼 @Injectable() 데코레이터가 있다. 해당 데코레이터는 app.service.ts가 공급자가 될 수 있도록 한다.
+
+```javascript
+app.controller.ts
+
+import { Controller} from '@nestjs/common';
+import { AppService } from './app.service';
+
+@Controller('home')
+export class AppController {
+  constructor(private readonly appService: AppService) {}
+  ...
+}
+```
+
+주입된 공급자는 controller로 설정된 클래스에서 constructor에서 private로 생성하여 사용한다.
