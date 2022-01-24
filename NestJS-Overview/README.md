@@ -256,3 +256,181 @@ export class AppModule implements NestModule {
   }
 }
 ```
+
+## Exception filter(예외 필터)
+
+[관련 공식 문서](https://docs.nestjs.com/exception-filters)
+
+### Http 관련 예외 발생시키기
+
+```javascript
+cats.controller.ts
+
+import { Controller, Get, HttpException } from '@nestjs/common';
+import { CatsService } from './cats.service';
+
+@Controller('cats')
+export class CatsController {
+  constructor(private readonly catsService: CatsService) {}
+
+  @Get()
+  getAllCat() {
+    throw new HttpException({ success: false, message: 'api is broken' }, 401);
+    return 'get all cat api';
+  }
+  @Get(':id')
+  getOneCat() {
+    return 'get one cat api';
+  }
+}
+```
+@nestjs/common에서 제공하는 HttpExcetion을 이용하여 예외를 생성하고 발생시킬 수 있다. HttpException은 response와 httpCode를 parameter로 받는다. 
+
+하지만 위에 적용된 httpException의 response 객체 중 message만 변경해서 재사용하고 싶다면 어떻게 해야할까?
+
+### filter 생성하기
+
+```bash
+nest g f [filter name]
+```
+nest cli를 이용하여 filter를 생성할 수 있다.
+
+```typescript
+http-exception.filter.ts
+
+import { ArgumentsHost, Catch, ExceptionFilter } from '@nestjs/common';
+
+@Catch()
+export class HttpExceptionFilter<T> implements ExceptionFilter {
+  catch(exception: T, host: ArgumentsHost) {
+    // catch에 대한 처리 해주기
+  }
+}
+```
+
+위와 같이 기본적인 filter의 형태가 생성된다. 
+
+```typescript
+http-exception.filter.ts
+
+import {
+  ArgumentsHost,
+  Catch,
+  ExceptionFilter,
+  HttpException,
+} from '@nestjs/common';
+import { Request, Response } from 'express';
+
+@Catch(HttpException)
+export class HttpExceptionFilter<T> implements ExceptionFilter {
+  catch(exception: HttpException, host: ArgumentsHost) {
+    // catch에 대한 처리 해주기
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<Request>();
+    const status = exception.getStatus();
+
+    response.status(status).json({
+      statusCode: status,
+      timestamp: new Date().toISOString(),
+      path: request.url,
+    });
+  }
+}
+
+```
+
+위 코드는 공식 문서의 예제 코드이다. 
+간단히 풀어보면 context를 가져와 요청과 응답에 대한 객체를 가져온다. 그 후 응답 객체에 상태를 설정하고 응답 본문을 응답코드와 함께 현재 시간과 발생 url를 json 형태로 담아준다.
+
+### filter 적용하기
+
+#### 전역에 적용시키기
+```typescript
+main.ts 
+
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { HttpExceptionFilter } from './http-exception.filter';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  app.useGlobalFilters(new HttpExceptionFilter());
+  await app.listen(8000);
+}
+bootstrap();
+```
+
+main.ts에가서 app에 useGlobalFilters를 이용하여 새로 만든 filter 객체를 생성하여 인자로 넣어주면 적용이 된다. 
+
+이렇게 적용시키면 기존의 아래와 같이 변경되어 에러를 응답하는 것을 알 수 있다.
+
+기존응답
+![image](https://user-images.githubusercontent.com/61923768/150753262-3f46a70e-c96d-4bad-8306-685afcf05441.png)
+
+필터가 적용된 응답
+![image](https://user-images.githubusercontent.com/61923768/150753455-6de31c3e-7ab0-4535-9873-0861539cf0a8.png)
+
+
+#### 특정 함수에 적용하기
+```typescript
+cats.controller.ts
+
+import { Controller, Get, HttpException, UseFilters } from '@nestjs/common';
+import { HttpExceptionFilter } from 'src/http-exception.filter';
+import { CatsService } from './cats.service';
+
+@Controller('cats')
+export class CatsController {
+  constructor(private readonly catsService: CatsService) {}
+
+  @Get()
+  @UseFilters(HttpExceptionFilter)
+  getAllCat() {
+    throw new HttpException('api broken', 401);
+    return 'get all cat api';
+  }
+  @Get(':id')
+  getOneCat() {
+    return 'get one cat api';
+  }
+}
+```
+위 코드에서 보면 @UseFilter()를 이용해서 HttpExceptionFilter를 특정 함수에만 적용한 것을 확인할 수 있다. 
+
+그러면 우리가 보내는 "api broken" 이라는 메세지까지 확인해보자.
+```typescript
+http-exception.filter.ts
+
+import {
+  ArgumentsHost,
+  Catch,
+  ExceptionFilter,
+  HttpException,
+} from '@nestjs/common';
+import { Request, Response } from 'express';
+
+@Catch(HttpException)
+export class HttpExceptionFilter<T> implements ExceptionFilter {
+  catch(exception: HttpException, host: ArgumentsHost) {
+    // catch에 대한 처리 해주기
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<Request>();
+    const status = exception.getStatus();
+    const error = exception.getResponse();
+
+    response.status(status).json({
+      statusCode: status,
+      timestamp: new Date().toISOString(),
+      path: request.url,
+      error,
+    });
+  }
+}
+```
+우리가 보낸 메세지는 예외의 응답에 담겨 있으면 exception.getResponse()를 통해서 객체를 가져올 수 있다. 이것을 응답 json 객체 속에 추가하면 적용이 된다.
+
+## pipes(파이프)
+
+[관련 공식 문서](https://docs.nestjs.com/pipes)
