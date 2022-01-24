@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Param, Req } from '@nestjs/common';
-import { Request } from 'express';
+import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
 import { AppService } from './app.service';
 import { CatsService } from './cats/cats.service';
+import { PositiveIntPipe } from './positive-int.pipe';
 
 @Controller('home')
 export class AppController {
@@ -12,11 +12,12 @@ export class AppController {
 
   @Get()
   getCatsHello(): string {
-    return this.catService.getCats();
+    return this.catService.getAllCats();
   }
 
   @Get(':id')
-  getHello(@Req() Req: Request, @Body() Body, @Param() Param): string {
-    return this.appService.getHello();
+  getOneCat(@Param('id', ParseIntPipe, PositiveIntPipe) id): string {
+    console.log(typeof id); // string -> number
+    return 'One Cats';
   }
 }

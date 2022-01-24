@@ -12,8 +12,4 @@ export class CatsController {
     throw new HttpException('api broken', 401);
     return 'get all cat api';
   }
-  @Get(':id')
-  getOneCat() {
-    return 'get one cat api';
-  }
 }

@@ -434,3 +434,97 @@ export class HttpExceptionFilter<T> implements ExceptionFilter {
 ## pipes(파이프)
 
 [관련 공식 문서](https://docs.nestjs.com/pipes)
+
+pipe의 일반적인 사용 방법은 데이터 타입 변환과 데이터 타입 검증이다. 
+
+
+### pipe 적용하기
+
+위에서 작성한 cat controller의 parameter인 id값을 검증 및 타입 변환에 적용해보고자 한다.
+
+```typescript
+cats.controller.ts
+
+import { Controller, Get, HttpException, UseFilters, Param } from '@nestjs/common';
+import { HttpExceptionFilter } from 'src/http-exception.filter';
+import { CatsService } from './cats.service';
+
+@Controller('cats')
+export class CatsController {
+  constructor(private readonly catsService: CatsService) {}
+
+  @Get()
+  @UseFilters(HttpExceptionFilter)
+  getAllCat() {
+    throw new HttpException('api broken', 401);
+    return 'get all cat api';
+  }
+  @Get(':id')
+  getOneCat(@Param('id') id): string {
+    console.log(typeof id); // string
+    return 'One Cats';
+  }
+}
+```
+
+위와 같이 id값을 할당받으면 string type으로 할당 받게 된다. 이러한 경우에 Nest에서 제공하는 내장 pipe 중 Int type에 대한 검증과 변환을 해주는 ParseIntPipe를 적용할 수 있다.
+
+```typescript
+@Get(':id')
+getOneCat(@Param('id', ParseIntPipe) id): string {
+  console.log(typeof id); // string -> number
+  return 'One Cats';
+}
+```
+
+이렇게 id의 타입의 number로 변환된 것을 확인할 수 있다.
+
+Nest에서 기본적으로 제공하는 내장 pipe는 총 8개이다. 내장 pipe는 @nest/common 패키지에서 import 할 수 있다.
+```
+- ValidationPipe
+- ParseIntPipe
+- ParseFloatPipe
+- ParseBoolPipe
+- ParseArrayPipe
+- ParseUUIDPipe
+- ParseEnumPipe
+- DefaultValuePipe
+```
+
+### custom pipe 생성 및 적용하기
+
+일반적으로 id값은 양수를 가지므로 정수에 대한 검증 및 변환이 아닌 양수에 대한 검증 및 변환하는 pipe를 만들고 다시 적용해보자.
+
+```typescript
+positive-int.pipe.ts
+
+import { HttpException, Injectable, PipeTransform } from '@nestjs/common';
+
+@Injectable()
+export class PositiveIntPipe implements PipeTransform {
+  transform(value: number) {
+    if (value < 0) {
+      throw new HttpException('Not Positive Number', 400);
+    }
+    return value;
+  }
+}
+```
+pipe를 정의할 때는 PipeTransform interface를 구현해야하고, Injectable 데코레이터를 추가해주어야 한다.
+
+이렇게 만든 pipe를 다시 controller에 적용하면 다음과 같이 적용될 수 있다.
+
+```typescript
+import { PositiveIntPipe } from './positive-int.pipe';
+
+@Get(':id')
+getOneCat(@Param('id', ParseIntPipe, PositiveIntPipe) id): string {
+  console.log(typeof id); // string -> number
+  return 'One Cats';
+}
+```
+
+이렇게 적용하면 음수인 id 값이 들어오면 에러가 발생하게 된다.
+
+
+[추가 관련 자료 - Pipes and Filters pattern](https://docs.microsoft.com/en-us/azure/architecture/patterns/pipes-and-filters)
