@@ -1,73 +1,75 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo_text.svg" width="320" alt="Nest Logo" /></a>
-</p>
+# Toy Proejct - Cat Information Community
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
-
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
-
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Installation
-
+## Swagger 적용하기
+### 관련 package 설치하기
 ```bash
-$ npm install
+npm i @nestjs/swagger swagger-ui-express
 ```
 
-## Running the app
+### Swagger 삽입하기
+```javascript
+main.ts
 
-```bash
-# development
-$ npm run start
+import { ValidationPipe } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
+import { AppModule } from './app.module';
 
-# watch mode
-$ npm run start:dev
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  app.useGlobalPipes(new ValidationPipe());
 
-# production mode
-$ npm run start:prod
+  const config = new DocumentBuilder()
+    .setTitle('Cat Information Community')
+    .setDescription('고양이 정보 공유하는 커뮤니티 플랫폼')
+    .setVersion('1.0.0')
+    .build();
+
+  const document: OpenAPIObject = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('docs', app, document);
+  const PORT = process.env.PORT;
+  await app.listen(PORT);
+}
+bootstrap();
 ```
+@nestjs/swagger에서 제공하는 DocumentBuilder를 이용해서 설정 값을 정의한 뒤 SwaggerModule을 이용해서 Document를 생성한다.
 
-## Test
-
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+이후 SwaggerModule에 setup 해주면 된다.
 ```
+SwaggerModule.setup(path:string, INestApplication, OpenAPIObject)
+```
+setup함수는 위와 같은 인자들을 받는다. 
 
-## Support
+### Swagger UI
+![swagger ui image](https://user-images.githubusercontent.com/61923768/150895177-52260e4a-f6f0-4c50-91c3-7ac4c8d3496c.png)
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+이후에 설정해놓은 /docs로 이동하면 위와 같은 화면을 볼 수 있다.
+config에 설정했던 Title, description, version이 상단에 보이는 것을 확인할 수 있다.
 
-## Stay in touch
+아래에는 controller에 설정된 http method와 path가 보인다. 여기에 설명을 추가해보자.
 
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```javascript
+cats.controller.ts
 
-## License
+import { ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 
-Nest is [MIT licensed](LICENSE).
+  @ApiOperation({
+    summary: '회원가입',
+    description:
+      '회원가입을 위한 api로 이메일, 사용자의 이름, 패스워드를 제공해야 합니다.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '회원가입 성공',
+    type: CatResponsetDto,
+  })
+  @ApiBody({ type: CatRequestDto })
+  @Post()
+  async signUp(@Body() body: CatRequestDto) {
+    return this.catsService.signUp(body);
+  }
+```
+위와 같이 Nest Swagger에서 여러 데코레이터를 이용해서 설명을 추가할 수 있다. 이렇게 추가된 설명을 아래와 같이 반영 된다.
+
+![swagger summary image](https://user-images.githubusercontent.com/61923768/150912381-e599eecd-736c-4ba2-b539-ce310d3360c0.png)
+
