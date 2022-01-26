@@ -6,7 +6,6 @@ import {
   PostCatApiResponse,
 } from './api-options/post.cat';
 import { CatsService } from './cats.service';
-import { CatResponsetDto } from './dto/cat.response.dto';
 import { CatRequestDto } from './dto/cats.request.dto';
 
 @Controller('cat')
@@ -21,17 +20,9 @@ export class CatsController {
     return 'current cat';
   }
 
-  @ApiOperation({
-    summary: '회원가입',
-    description:
-      '회원가입을 위한 api로 이메일, 사용자의 이름, 패스워드를 제공해야 합니다.',
-  })
-  @ApiResponse({
-    status: 200,
-    description: '회원가입 성공',
-    type: CatResponsetDto,
-  })
-  @ApiBody({ type: CatRequestDto })
+  @ApiOperation(PostCatApiOperation)
+  @ApiResponse(PostCatApiResponse)
+  @ApiBody(PostCatApiBody)
   @Post()
   async signUp(@Body() body: CatRequestDto) {
     return this.catsService.signUp(body);
